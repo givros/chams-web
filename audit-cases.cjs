@@ -1,0 +1,77 @@
+const {course}=require('./weather-course.js');
+const cases=[];
+function add(index,label,code,expected){cases.push({index,label:`${index+1}: ${label}`,code,expected});}
+function altered(index,key,from,to){const code={...course[index].solution};code[key]=code[key].replace(from,to);return code;}
+course.forEach((lesson,index)=>{
+  add(index,'correction attendue',lesson.solution,true);
+  add(index,'point de départ incomplet',lesson.starter,false);
+  add(index,'code vide',{html:'',css:'',js:''},false);
+});
+add(0,'espaces supplémentaires',{html:'Station   météo   CHAMS',css:'',js:''},true);
+add(1,'minuscules cohérentes',{html:'station météo chams\nDes données pour mieux comprendre notre environnement.',css:'',js:''},true);
+add(1,'deuxième phrase absente',{html:'Station météo CHAMS\n                    ',css:'',js:''},false);
+add(2,'balise BR majuscule',altered(2,'html','<br>','<BR />'),true);
+add(2,'lettres br sans chevrons',altered(2,'html','<br>','br'),false);
+add(3,'paragraphe de la capture',{html:'Station météo CHAMS\n<p>Des données pour mieux comprendre notre environnement.</p>',css:'',js:''},true);
+add(3,'attributs et majuscules',{html:'Station météo CHAMS\n<P class="intro">Des données météo.</P>',css:'',js:''},true);
+add(3,'fermeture manquante',altered(3,'html','</p>',''),false);
+add(3,'paragraphe vide suivi de texte non fermé',{html:'Station météo CHAMS<p></p><p>Présentation sans fermeture',css:'',js:''},false);
+add(3,'paragraphe commenté',{html:'Station météo CHAMS<!-- <p>Une présentation</p> -->',css:'',js:''},false);
+add(4,'sous-titre non fermé',altered(4,'html','</h2>',''),false);
+add(4,'paragraphe de section vide',{...course[4].solution,html:'<h1>Station météo CHAMS</h1><p>Des données pour comprendre notre environnement.</p><h2>Notre station météo</h2><p></p>'},false);
+add(4,'phrase personnelle',{...course[4].solution,html:'<h1>Station météo CHAMS</h1><p>Des données pour comprendre notre environnement.</p><h2>Notre station météo</h2><p>Les élèves ont construit cette station pour découvrir les capteurs.</p>'},true);
+add(5,'destination inexistante',altered(5,'html','href="#station">La station','href="#introuvable">La station'),false);
+add(5,'guillemets simples',{...course[5].solution,html:course[5].solution.html.replaceAll('"',"'")},true);
+add(6,'description courte pertinente',altered(6,'html','Une station météo avec un anémomètre et ses capteurs','Station météo'),true);
+add(6,'description différente pertinente',altered(6,'html','Une station météo avec un anémomètre et ses capteurs','Capteurs météorologiques'),true);
+add(6,'image cassée',altered(6,'html','src="station.png"','src="missing.png"'),false);
+add(6,'alt vide',altered(6,'html','Une station météo avec un anémomètre et ses capteurs',''),false);
+add(7,'unités sans espaces',{...course[7].solution,html:course[7].solution.html.replace('22 °C','22°C').replace('65 %','65%').replace('1013 hPa','1013hPa')},true);
+add(7,'valeurs dans les mauvaises cartes',{...course[7].solution,html:course[7].solution.html.replace('22 °C','TEMP').replace('65 %','22 °C').replace('TEMP','65 %')},false);
+add(7,'valeur incorrecte',altered(7,'html','1013 hPa','100 hPa'),false);
+add(8,'cinquième lien hors liste',altered(8,'html','<li><a href="#station">Le projet CHAMS</a></li>','<a href="#station">Le projet CHAMS</a>'),false);
+add(8,'autre lien cassé',altered(8,'html','https://www.arduino.cc','#absent'),false);
+add(9,'une autre ligne incomplète',altered(9,'html','<td>22</td><td>65</td>','<td>22</td>'),false);
+add(9,'colonnes inversées',altered(9,'html','<td>19</td><td>60</td>','<td>60</td><td>19</td>'),false);
+add(10,'couleur RGB équivalente',altered(10,'css','#10243a','rgb(16, 36, 58)'),true);
+add(10,'mauvais sélecteur',altered(10,'css','body {','h2 {'),false);
+add(10,'marge non nulle',altered(10,'css','margin: 0','margin: 8px'),false);
+add(11,'image de fond inexistante',altered(11,'css','url("mountains.png")','url("missing-mountains.png")'),false);
+add(11,'couleur blanche équivalente',altered(11,'css','color: white;\n  text-align','color: #fff;\n  text-align'),true);
+add(11,'espace intérieur absent',altered(11,'css','padding: 28px','padding: 0'),false);
+add(12,'cartes en colonne',{...course[12].solution,css:course[12].solution.css+'\n.metrics { flex-direction: column; }'},false);
+add(12,'gap équivalent',{...course[12].solution,css:course[12].solution.css.replace('gap: 20px','column-gap: 20px; row-gap: 20px')},true);
+add(13,'colonnes inégales',altered(13,'css','grid-template-columns: 1fr 1fr','grid-template-columns: 1fr 2fr'),false);
+add(13,'grille en pourcentages égaux',altered(13,'css','grid-template-columns: 1fr 1fr','grid-template-columns: calc((100% - 38px) / 2) calc((100% - 38px) / 2)'),true);
+add(13,'bordures séparées',altered(13,'css','border-collapse: collapse','border-collapse: separate'),false);
+add(14,'message personnalisé',altered(14,'js','Les capteurs mesurent la température, l’humidité et la pression. Les valeurs de cette page sont des exemples pour apprendre.','Notre station mesure la météo grâce à plusieurs capteurs.'),true);
+add(14,'affectation avant le clic',{...course[14].solution,js:'document.querySelector("#message").textContent="Les capteurs mesurent les données météo.";'},false);
+add(14,'bouton désactivé',altered(14,'html','<button id="hello">','<button id="hello" disabled>'),false);
+add(14,'mauvais sélecteur',altered(14,'js','"#hello"','"#absent"'),false);
+add(15,'liste utile supprimée',{...course[15].solution,html:course[15].solution.html.replace(/<aside class="useful-links">[\s\S]*?<\/aside>/,'')},false);
+add(15,'ligne cassée',altered(15,'html','<td>22</td><td>65</td>','<td>22</td>'),false);
+add(15,'image absente',altered(15,'html','src="station.png"','src="missing.png"'),false);
+add(15,'mention personnelle ajoutée',altered(15,'html','Réalisé par notre classe','Réalisé par notre classe de cinquième'),true);
+module.exports={cases};
+// Keep student content and tolerate formatting changes while adding each scaffold.
+const assert=require('node:assert/strict');
+const {JSDOM}=require('jsdom');
+const selectors={5:'.site-header',6:'#station figure',7:'.metrics',8:'.useful-links',9:'.history',14:'#hello'};
+for(const index of [5,6,7,8,9,14]){
+  const marker='Texte personnel de notre classe';
+  const previous={...course[index-1].solution,html:course[index-1].solution.html.replace('Des données pour mieux comprendre notre environnement',marker).replace(/>\s+</g,'><').replaceAll('"',"'").replace(/<(\/?)([a-z][a-z0-9]*)(?=[\s>])/gi,(_match,slash,tag)=>'<'+slash+tag.toUpperCase())};
+  const prepared=course[index].prepare(previous);
+  assert.ok(prepared.html.includes(marker),'Personal text survives scaffold '+index);
+  const doc=new JSDOM(prepared.html).window.document;
+  assert.equal(doc.querySelectorAll(selectors[index]).length,1,'Scaffold appears exactly once: '+index);
+  assert.deepEqual(course[index].prepare(prepared),prepared,'Preparing twice is idempotent: '+index);
+  add(index,'code reformatté avant de compléter',prepared,false);
+  let solved={...prepared};
+  if(index===5)solved.html=solved.html.replace('#a-completer','#station');
+  if(index===6)solved.html=solved.html.replace('src=""','src="station.png"').replace('alt=""','alt="Station météo"');
+  if(index===7)for(const value of ['22','65','1013','Ensoleillé'])solved.html=solved.html.replace('À COMPLÉTER',value);
+  if(index===8)solved.html=solved.html.replace('<!-- Ajoute ici le cinquième lien vers #station -->','<li><a href="#station">Le projet CHAMS</a></li>');
+  if(index===9)solved.html=solved.html.replace('<!-- Ajoute la mesure de 10:32 : 19, 60, 1011 -->','<tr><td>14/10 - 10:32</td><td>19</td><td>60</td><td>1011</td></tr>');
+  if(index===14)solved.js=course[index].solution.js;
+  add(index,'code reformatté complété sans perte du texte personnel',solved,true);
+}

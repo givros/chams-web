@@ -1,0 +1,21 @@
+{
+  "name": "web-lab",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "check": "node --check app.js && node --check weather-course.js && node --check engine.js && node --check server.js && node --check game-course.js && node --check three-runtime.js",
+    "test": "node game-test.cjs && node smoke-test.js",
+    "test:browser": "node browser-audit.cjs",
+    "build:three": "node build-three.cjs",
+    "test:three": "node three-browser-test.cjs",
+    "build": "npm run build:three && node build-site.cjs"
+  },
+  "devDependencies": {
+    "jsdom": "^26.1.0",
+    "esbuild": "0.25.9"
+  },
+  "dependencies": {
+    "three": "0.185.1"
+  }
+}

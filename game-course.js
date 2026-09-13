@@ -1,0 +1,109 @@
+(() => {
+const web=WebLabCourse;
+function scene3D(){return {
+  html:'<section class="three-workshop"><header><strong>Mon premier personnage 3D</strong><button id="rejouer">Replacer au départ</button></header><p id="notice">Chargement du personnage…</p><div id="terrain" tabindex="0" role="application" aria-label="Terrain Three.js. Clique ici pour utiliser le clavier."></div><footer><span>← gauche : x négatif</span><span>droite : x positif →</span></footer></section><script src="three.bundle.js"></script><script src="three-runtime.js"></script><script>creerAtelier3D();</script>',
+  css:'*{box-sizing:border-box}body{margin:0;color:#193653;background:#f1f7fb;font:14px system-ui}.three-workshop{padding:12px}header{display:flex;align-items:center;justify-content:space-between;gap:10px}header strong{font-size:14px}button{padding:8px 10px;border:1px solid #afc4d5;background:white;color:#214c6c;border-radius:7px;cursor:pointer}#notice{font-size:12px;min-height:30px;margin:10px 0 6px}#terrain{height:340px;overflow:hidden;border-radius:10px;border:1px solid #c2d6e4}#terrain:focus{outline:3px solid #2079c8;outline-offset:2px}canvas{display:block}footer{display:flex;justify-content:space-between;font-size:11px;color:#4f6c80;margin-top:8px}',js:''
+};}
+function runtime(mode){
+  const scene=document.querySelector('#terrain'),avatar=document.querySelector('#avatar'),star=document.querySelector('#etoile'),hud=document.querySelector('#score'),notice=document.querySelector('#notice');
+  window.personnage={x:60,z:180,y:0,vitesse:0,impulsion:0,couleur:'#8b5cf6'};
+  window.etoile={x:280,z:180};window.score=0;
+  let vertical=0,keys=new Set(),running=false,ended=false,last=0,accumulator=0;
+  const call=(name,...args)=>{if(typeof window[name]==='function')return window[name](...args);};
+  function reset(){Object.assign(personnage,{x:60,z:180,y:0});Object.assign(etoile,{x:280,z:180});score=0;vertical=0;ended=false;keys.clear();notice.textContent='Clique sur le terrain pour jouer.';render();}
+  function render(){
+    avatar.style.setProperty('--avatar-color',personnage.couleur);
+    avatar.style.transform=mode==='3d'?`translate3d(${personnage.x}px,${personnage.z}px,${personnage.y}px)`:`translate(${personnage.x}px,${personnage.z}px)`;
+    star.style.transform=mode==='3d'?`translate3d(${etoile.x}px,${etoile.z}px,28px)`:`translate(${etoile.x}px,${etoile.z}px)`;
+    hud.textContent=mode==='3d'?'Cristaux : '+score+' / 3':'Étoiles : '+score+' / 5';
+  }
+  scene.addEventListener('pointerdown',()=>{scene.focus();running=true;notice.textContent='Flèches : bouger'+(mode==='3d'?' · Espace : sauter':'');});
+  scene.addEventListener('keydown',e=>{if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Space'].includes(e.code)){e.preventDefault();running=true;keys.add(e.code);if(e.code==='Space'&&!e.repeat&&personnage.y===0&&!ended){call('sauter');vertical=personnage.impulsion;personnage.impulsion=0;}}});
+  scene.addEventListener('keyup',e=>keys.delete(e.code));
+  scene.addEventListener('blur',()=>{keys.clear();running=false;});
+  window.addEventListener('blur',()=>{keys.clear();running=false;});
+  document.querySelector('#rejouer').onclick=()=>{reset();scene.focus();running=true;};
+  function tick(){
+    if(!running||ended)return;
+    for(const key of keys)call('deplacer',key);
+    personnage.x=Math.max(20,Math.min(400,personnage.x));personnage.z=Math.max(35,Math.min(245,personnage.z));
+    if(mode==='3d'){personnage.y=Math.max(0,personnage.y+vertical);vertical=personnage.y>0?vertical-0.45:0;}
+    if(Math.hypot(personnage.x-etoile.x,personnage.z-etoile.z)<25&&(mode!=='3d'||personnage.y>18)){
+      if(mode==='3d'){score++;etoile.x=70+Math.random()*290;etoile.z=55+Math.random()*170;}else{call('ramasser');call('replacer');}
+    }
+    if(call('victoire')===true){ended=true;notice.textContent='Bravo ! Tu as gagné. Rejoue ou invente une nouvelle règle !';}
+  }
+  function loop(now){accumulator+=Math.min((now-last)||0,50);last=now;try{while(accumulator>=1000/60){tick();accumulator-=1000/60;}render();}catch(e){running=false;notice.textContent='Une instruction pose problème : '+e.message;throw e;}requestAnimationFrame(loop);}
+  // Observe learner functions against controlled situations, then restore the game.
+  window.atelier={observer(){
+    const original={p:{...personnage},e:{...etoile},score};const result={mode,color:personnage.couleur,speed:personnage.vitesse};
+    try{
+      result.moves={};for(const key of ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown']){Object.assign(personnage,{x:200,z:140});call('deplacer',key);result.moves[key]={x:personnage.x-200,z:personnage.z-140};}
+      personnage.impulsion=0;call('sauter');result.jump=personnage.impulsion;
+      score=0;call('ramasser');result.reward=score;
+      result.positions=[];for(let i=0;i<6;i++){call('replacer');result.positions.push({...etoile});}
+      result.wins=[0,2,3,4,5,6].map(value=>{score=value;return {score:value,won:call('victoire')===true};});
+    }finally{Object.assign(personnage,original.p);Object.assign(etoile,original.e);score=original.score;}
+    return result;
+  },reset};
+  const fit=()=>document.querySelector('.world').style.zoom=String(Math.min(1,(scene.clientWidth-24)/520));
+  if(typeof ResizeObserver!=='undefined')new ResizeObserver(fit).observe(scene);
+  fit();reset();requestAnimationFrame(loop);
+}
+const faces='<i></i>'.repeat(6);
+function scene(mode){if(mode==='3d')return scene3D();return {html:`<section class="game ${mode==='3d'?'three':'two'}"><header><strong>${mode==='3d'?'L’île aux cristaux':'La chasse aux étoiles'}</strong><span id="score"></span><button id="rejouer">Rejouer</button></header><p id="notice"></p><div id="terrain" tabindex="0" role="application" aria-label="Terrain de jeu. Flèches pour bouger${mode==='3d'?', espace pour sauter':''}."><div class="world"><div class="floor"></div><div id="avatar" class="${mode==='3d'?'cube':'sprite'}">${mode==='3d'?faces:'🤖'}</div><div id="etoile">${mode==='3d'?'◆':'⭐'}</div></div></div><footer>${mode==='3d'?'Saute pour attraper les cristaux en hauteur.':'Attrape les étoiles avec ton robot.'} Chaque modification du code relance le jeu.</footer></section><script>(${runtime.toString()})(${JSON.stringify(mode)})<\/script>`,css:`*{box-sizing:border-box}body{margin:0;background:#10192a;color:#e8f0ff;font:14px system-ui}.game{max-width:760px;margin:auto;padding:14px}header{display:flex;align-items:center;gap:12px}header strong{flex:1}button{border:0;border-radius:8px;background:#d9f991;color:#20351a;padding:8px;cursor:pointer}#notice{height:36px;color:#c0d0e6;margin:8px 0}#terrain{height:290px;position:relative;overflow:hidden;border:1px solid #44627b;border-radius:12px;background:radial-gradient(ellipse at top,#315678,#14273e);perspective:700px;outline-offset:2px}#terrain:focus{outline:2px solid #d9f991}.world{position:absolute;width:440px;height:280px;left:50%;top:0;margin-left:-220px;transform-style:preserve-3d}.three .world{transform:rotateX(48deg);transform-origin:center 65%}.floor{position:absolute;inset:20px 0 0;background:repeating-linear-gradient(0deg,transparent 0 39px,#9bd7da22 40px),repeating-linear-gradient(90deg,#357d75 0 39px,#85c9b5 40px);border:4px solid #8bc4af;border-radius:12px}.two .floor{background:repeating-linear-gradient(0deg,#253c60 0 39px,#324968 40px);border-color:#557ba0}.cube{position:absolute;width:28px;height:28px;transform-style:preserve-3d}.cube i{position:absolute;inset:0;background:var(--avatar-color);border:1px solid #ffffff99}.cube i:nth-child(1){transform:translateZ(28px);filter:brightness(1.2)}.cube i:nth-child(2){transform:rotateY(90deg);transform-origin:right}.cube i:nth-child(3){transform:rotateY(-90deg);transform-origin:left}.cube i:nth-child(4){transform:rotateX(90deg);transform-origin:top}.cube i:nth-child(5){transform:rotateX(-90deg);transform-origin:bottom;background:var(--avatar-color)}.cube i:nth-child(5):after{content:'••';color:white;position:absolute;left:6px;top:2px}.cube i:nth-child(6){transform:translateZ(0)}.sprite{position:absolute;font-size:30px;line-height:30px;filter:drop-shadow(0 5px 3px #0008)}#etoile{position:absolute;color:#ffdb70;text-shadow:0 0 18px #ffd66c;font-size:30px;line-height:30px}footer{color:#b9cce0;font-size:12px;margin-top:10px}`,js:''};}
+const games=[];
+const directions=`function deplacer(touche) {
+  if (touche === "ArrowRight") personnage.x += personnage.vitesse;
+  if (touche === "ArrowLeft") personnage.x -= personnage.vitesse;
+}`;
+const depth=`\n  if (touche === "ArrowUp") personnage.z -= personnage.vitesse;
+  if (touche === "ArrowDown") personnage.z += personnage.vitesse;`;
+const moveCheck=s=>s.game?.moves.ArrowRight.x>0&&s.game.moves.ArrowLeft.x<0;
+const depthCheck=s=>s.game?.moves.ArrowUp.z<0&&s.game.moves.ArrowDown.z>0;
+function add(mode,title,explanation,before,after,instructions,question,options,answer,test,help,challenge){
+  if(games.length===0&&mode==='2d')addThreeLessons();
+  const prior=games.at(-1);const fresh=!prior||prior.mode!==mode;
+  const prepare=c=>fresh?{...scene(mode),js:before}:{...c,js:c.js+(before.startsWith('// AJOUT')?'\n'+before:'')};
+  let starter=fresh?prepare():{...prior.solution};
+  if(!fresh){if(before.startsWith('// AJOUT'))starter.js+='\n'+before;else starter.js=prior.solution.js;}
+  const solution={...starter,js:before.startsWith('// AJOUT')?starter.js.replace(before,after):starter.js.replace(before,after)};
+  const exampleBefore={...scene(mode),js:starter.js},exampleAfter={...scene(mode),js:solution.js};
+  const checks=[{label:help,test,help:'À vérifier : '+help}];
+  games.push({mode,chapter:mode==='3d'?'Jeu 3D':'Jeu 2D',chapterStart:fresh,tab:'js',tabs:['js'],title,topic:(mode==='3d'?'Jeu 3D':'Jeu 2D')+' · Une idée, un essai',objective:instructions[0],explanation,before,after,starter,solution,prepare,exampleBefore,exampleAfter,instructions,question,options,answer,responses:options.map((_,i)=>i===answer?'Exact ! Essaie maintenant dans ton jeu.':'Relis l’explication, puis observe l’exemple avant de réessayer.'),annotations:['Le code « Avant / Après » montre seulement les lignes à modifier.','Clique dans le jeu pour lui donner le clavier. Les flèches ne déplacent rien tant que tu ne les as pas programmées.'],criteria:checks.map(c=>c.label),checks,hints:[help,'Compare ton code avec l’exemple Après. Tu peux copier ces quelques lignes, puis les modifier.'],focus:before.startsWith('// AJOUT')?'// AJOUT':before,challenge,takeaway:explanation,scaffold:'Le terrain, le dessin du personnage et la boucle du jeu sont fournis. Tu programmes ses règles en JavaScript. En 3D, personnage est un véritable objet Three.js. Sa propriété position contient x (gauche/droite), y (hauteur) et z (avant/arrière). Tu n’as pas besoin d’écrire la caméra ou l’éclairage pour commencer.',});
+}
+add('2d','Ton nouveau terrain en 2D','En 2D, le personnage se déplace sur une surface plate. On réutilise les mêmes idées : position, vitesse et touches. Le robot est fourni ; cette fois, il ne saute pas.','personnage.vitesse = 0;','personnage.vitesse = 3;\n'+directions.replace('\n}',depth+'\n}'),['Complète la vitesse et copie la fonction deplacer de l’exemple Après.','Teste les quatre flèches sur le nouveau terrain.','Observe la différence avec le jeu 3D : il n’y a plus de hauteur de saut.'],'Quelle idée peut-on réutiliser en 2D ?',['Seulement la couleur du ciel.','Aucune.','Les conditions qui réagissent aux touches.'],2,s=>moveCheck(s)&&depthCheck(s)&&s.game.speed>0,'Le robot se déplace dans les quatre directions.','Personnalise sa vitesse. Pourquoi une vitesse très élevée rend-elle la collecte plus difficile ?');
+add('2d','Gagne un point','Le moteur détecte le contact avec une étoile et appelle ramasser. score = score + 1 lit le score actuel, ajoute un point et conserve le nouveau résultat.','// AJOUT : au contact d’une étoile\nfunction ramasser() {\n  score = score + 0;\n}','function ramasser() {\n  score = score + 1;\n}',['Dans ramasser, remplace 0 par 1.','Touche une étoile. Le score augmente.','Pour l’instant, rester sur l’étoile donne plein de points : nous allons résoudre cela à la prochaine mission.'],'Si score vaut 2, que donne score = score + 1 ?',['3','1','21'],0,s=>s.game?.reward===1,'Un appel à ramasser ajoute exactement un point.','Essaie + 5, observe, puis reviens à + 1.');
+add('2d','Déplace l’étoile au hasard','Math.random() donne un nombre entre 0 inclus et 1 exclu. En le multipliant, on obtient une position différente à chaque collecte. Les marges gardent l’étoile dans le terrain.','// AJOUT : une nouvelle position après la collecte\nfunction replacer() {\n  etoile.x = 280;\n  etoile.z = 180;\n}','function replacer() {\n  etoile.x = 40 + Math.random() * 340;\n  etoile.z = 40 + Math.random() * 190;\n}',['Remplace les deux positions fixes par les calculs de l’exemple.','Attrape plusieurs étoiles : chacune apparaît ailleurs.'],'Pourquoi ajouter 40 ?',['Pour ajouter 40 points.','Pour garder une marge au bord.','Pour attendre 40 secondes.'],1,s=>s.game?.positions.every(p=>p.x>=40&&p.x<=380&&p.z>=40&&p.z<=230)&&new Set(s.game.positions.map(p=>p.x+','+p.z)).size>1,'Les positions varient et restent dans les limites du terrain.','Réduis 340 à 100. Dans quelle zone les étoiles apparaissent-elles maintenant ?');
+add('2d','Termine ta première partie','Tu connais déjà return et >=. Réutilise-les pour terminer la partie après cinq étoiles. Une même notion sert dans plusieurs projets.','// AJOUT : la règle de victoire\nfunction victoire() {\n  return false;\n}','function victoire() {\n  return score >= 5;\n}',['Complète la fonction pour gagner à partir de 5 points.','Joue une partie complète, puis recommence.','Passe ensuite au Web : tu vas écrire ta première page, depuis une page blanche.'],'Quelle condition gagne à partir de 5 points ?',['score < 5','score === 0','score >= 5'],2,s=>s.game?.wins.every(v=>v.won===(v.score>=5)),'La victoire arrive à partir de 5 points, pas avant.','Fais tester ton jeu à un camarade. Demande-lui une règle qu’il aimerait changer, puis essaie de la coder.');
+function addThreeLessons(){
+  const right='function deplacer(touche) {\n  if (touche === "ArrowRight") {\n    personnage.position.x += 0.05;\n  }\n}';
+  const both=right.slice(0,-1)+'  if (touche === "ArrowLeft") {\n    personnage.position.x -= 0.05;\n  }\n}';
+  const four=both.slice(0,-1)+'  if (touche === "ArrowUp") {\n    personnage.position.z -= 0.05;\n  }\n  if (touche === "ArrowDown") {\n    personnage.position.z += 0.05;\n  }\n}';
+  const real=s=>s.game?.three&&s.game.isGroup&&s.game.meshCount>=10;
+  const rightWorks=s=>s.game?.moves.ArrowRight.x>0&&s.game.moves.ArrowRight.x<=0.15;
+  const leftWorks=s=>s.game?.moves.ArrowLeft.x<0&&s.game.moves.ArrowLeft.x>=-0.15;
+  add('3d','Déplace ton personnage','Voici ton personnage Three.js. Il est déjà dessiné pour toi. x indique sa place de gauche à droite. Pour commencer, change seulement un nombre : 0 est le centre, 2 est à droite, -2 est à gauche.','personnage.position.x = 0;','personnage.position.x = 2;',['Remplace seulement le 0 par 2.','Regarde le personnage : il change de place sur le terrain.','Essaie -2, puis garde une position différente de 0 entre -3 et 3.'],'Que dois-tu changer pour placer le personnage à gauche ?',['Remplacer 0 par un nombre négatif.','Effacer toute la ligne.','Ajouter une image.'],0,s=>real(s)&&Number.isFinite(s.game.x)&&s.game.x!==0&&Math.abs(s.game.x)<=3,'Le personnage Three.js a une position x différente de 0, entre -3 et 3.','Essaie 1, puis -1. Le cercle au sol marque toujours le centre.');
+  add('3d','Fais-le marcher vers la droite','Le bloc est fourni : ne change que le 0. if veut dire « si ». ArrowRight désigne la flèche droite. += ajoute un petit déplacement. Le moteur répète cette action pendant que la touche est enfoncée.','// AJOUT : la flèche droite\n'+right.replace('0.05','0'),right,['Dans le nouveau bloc, remplace += 0 par += 0.05. Utilise un point, pas une virgule.','Clique dans le jeu, puis maintiens la flèche droite.','Relâche : le personnage s’arrête. Clique sur Replacer au départ pour réessayer.'],'Que fait += 0.05 ?',['Il change la taille du personnage.','Il augmente un peu sa position x.','Il fait sauter.'],1,s=>real(s)&&rightWorks(s),'La flèche droite augmente x d’un petit pas, entre 0 et 0.15.','Compare 0.02 et 0.08. Quelle valeur te semble la plus facile à contrôler ?');
+  add('3d','Ajoute la flèche gauche','Tu peux réutiliser les lignes de la flèche droite. Pour aller à gauche, change ArrowRight en ArrowLeft et += en -=. Le signe moins diminue la position x.',right,both,['Dans deplacer, copie le bloc if de la flèche droite, avant la dernière accolade }.','Dans ta copie, remplace ArrowRight par ArrowLeft, puis += par -=.','Teste les deux flèches. Compare avec Après si tu hésites sur les accolades.'],'Quel signe fait reculer la valeur de x ?',['+=','===','-='],2,s=>real(s)&&rightWorks(s)&&leftWorks(s),'Les flèches droite et gauche déplacent le personnage dans les deux sens.','Régle les deux déplacements sur 0.03. Garde la même vitesse à gauche et à droite.');
+  add('3d','Explore la profondeur','Dans Three.js, x sert à aller à gauche et à droite, y représente la hauteur et z la profondeur. Tu connais déjà les conditions : ajoute deux blocs pour avancer et reculer.',both,four,['Ajoute les deux blocs ArrowUp et ArrowDown montrés dans Après, à l’intérieur de deplacer.','Cette fois, modifie position.z. ArrowUp retire 0.05 ; ArrowDown ajoute 0.05.','Teste les quatre directions sur le terrain.'],'Quelle coordonnée permet d’aller vers le fond du terrain ?',['z','x','La couleur'],0,s=>real(s)&&rightWorks(s)&&leftWorks(s)&&depthCheck(s),'Les quatre flèches fonctionnent : x pour les côtés, z pour la profondeur.','Maintiens deux flèches à la fois pour marcher en diagonale.');
+  add('3d','Fais sauter ton personnage','Le bloc sauter est appelé quand tu appuies sur Espace. La vitesse verticale donne l’élan du saut. La gravité est déjà fournie : elle fait redescendre le personnage, sans que tu aies à tout programmer.','// AJOUT : le saut avec Espace\nfunction sauter() {\n  vitesseVerticale = 0;\n}','function sauter() {\n  vitesseVerticale = 0.12;\n}',['Dans sauter, remplace 0 par 0.12.','Clique dans le terrain, puis appuie sur Espace : le personnage monte et retombe.','Essaie ensuite de marcher et de sauter en même temps.'],'Quelle coordonnée change pendant le saut ?',['x','y','z'],1,s=>real(s)&&rightWorks(s)&&leftWorks(s)&&depthCheck(s)&&s.game.jump>=0.08&&s.game.jump<=0.18,'Le personnage peut marcher et sauter avec un élan entre 0.08 et 0.18.','Essaie 0.09, puis 0.16. Observe la hauteur du saut. Ensuite, découvre le jeu 2D.');
+  for(const lesson of games){
+    lesson.annotations=['Le personnage, la caméra, le sol et les lumières sont fournis avec Three.js.','Tu écris uniquement les quelques lignes de cette mission.'];
+    lesson.topic='Three.js · '+lesson.title;
+    lesson.takeaway=lesson.explanation;
+  }
+}
+// Keep the previously learned 2D mechanics in later missions.
+for(const lesson of games.filter(l=>l.mode==='2d'))lesson.scaffold='Le terrain et le robot 2D sont fournis. Ici, le petit moteur utilise personnage.x pour les côtés et personnage.z pour le haut et le bas du terrain, en pixels. Dans le chapitre précédent, personnage.position était la position du véritable objet Three.js.';
+for(let i=6;i<games.length;i++){
+  const lesson=games[i];
+  lesson.checks.push({label:'Le robot se déplace toujours dans les quatre directions.',help:'Conserve la fonction deplacer et une vitesse positive.',test:s=>moveCheck(s)&&depthCheck(s)});
+  if(i>=7)lesson.checks.push({label:'Chaque collecte rapporte un point.',help:'Conserve score = score + 1 dans ramasser.',test:s=>s.game?.reward===1});
+  if(i===8)lesson.checks.push({label:'Les étoiles restent dans le terrain et changent de place.',help:'Conserve la fonction replacer.',test:games[7].checks[0].test});
+  lesson.criteria=lesson.checks.map(check=>check.label);
+}
+const course=[...games,...web.course.map((lesson,index)=>({...lesson,webIndex:index,chapter:'Web',chapterStart:index===0,tabs:index<10?['html']:index<14?['html','css']:['html','css','js'],prepare:index===0?()=>({...lesson.starter}):lesson.prepare}))];
+globalThis.WebLabCourse={course,target:web.target,validateExercise(index,s,c){if(index>=games.length)return web.validateExercise(index-games.length,s,c);return course[index].checks.map(check=>{let pass=false;try{pass=!s.errors?.length&&!!check.test(s,c);}catch{}return {pass,message:pass?check.label:check.help};});}};
+if(typeof module!=='undefined')module.exports=globalThis.WebLabCourse;
+})();
