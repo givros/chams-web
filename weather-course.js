@@ -22,10 +22,16 @@ const hasImage=s=>s.images.some(i=>i.loaded&&i.visible&&/(?:^|\/)station\.png(?:
 const navWorks=s=>['#accueil','#station','#donnees','#apropos'].every(href=>s.links.some(a=>a.inNav&&a.href===href&&a.valid));
 const measurements=s=>Object.entries({temperature:'22 °C',humidity:'65 %',pressure:'1013 hPa',conditions:'Ensoleillé'}).every(([kind,value])=>s.metrics.some(m=>m.kind===kind&&m.visible&&normalize(m.value).replace(/\s/g,'')===normalize(value).replace(/\s/g,'')));
 const usefulLinks=s=>s.usefulLinkCount>=5&&s.links.filter(a=>a.inUsefulList).every(a=>a.valid&&a.text.trim())&&s.links.some(a=>a.inUsefulList&&a.href==='#station'&&a.valid&&/CHAMS/i.test(a.text));
-const tableComplete=s=>s.tableHeadings===4&&s.tableRows.length>=5&&s.tableRows.every(row=>row.length===4&&row.every(v=>v.trim())&&row.slice(1).every(v=>Number.isFinite(Number(v.replace(',','.')))))&&s.tableRows.some(row=>/10:32/.test(row[0])&&row.slice(1).join(',')==='19,60,1011');
+const tableComplete=s=>{
+  const headings=(s.tableHeadingTexts||[]).map(normalize);
+  const indexes=[/date|heure/,/temperature/,/humidite/,/pression/].map(pattern=>headings.findIndex(h=>pattern.test(h)));
+  if(s.tableHeadings!==4||indexes.some(i=>i<0)||new Set(indexes).size!==4||s.tableRows.length<5)return false;
+  const [date,...values]=indexes,numeric=v=>Number(v.trim().replace(',','.'));
+  return s.tableRows.every(row=>row.length===4&&row.every(v=>v.trim())&&values.every(i=>Number.isFinite(numeric(row[i]))))&&s.tableRows.some(row=>/10:32/.test(row[date])&&values.every((i,n)=>numeric(row[i])===[19,60,1011][n]));
+};
 const equalColumns=s=>{const columns=(s.styles.stationColumns||'').split(/\s+/).filter(Boolean);return s.styles.stationDisplay==='grid'&&columns.length===2&&((columns[0]==='1fr'&&columns[1]==='1fr')||columns.every(v=>/^\d+(?:\.\d+)?px$/.test(v))&&Math.abs(parseFloat(columns[0])-parseFloat(columns[1]))<1);};
 const heroReady=s=>s.styles.heroImageLoaded===true&&s.styles.heroColor==='rgb(255, 255, 255)'&&s.styles.heroPadding==='28px';
-const cardsAligned=s=>s.styles.metricsDisplay==='flex'&&s.styles.metricsDirection==='row'&&s.styles.metricsGap==='20px';
+const cardsAligned=s=>s.styles.metricsDisplay==='flex'&&['row','row-reverse'].includes(s.styles.metricsDirection)&&(s.styles.metricsColumnGap||s.styles.metricsGap)==='20px';
 const action=s=>s.interaction.exists&&s.interaction.visible&&s.interaction.after!==s.interaction.before&&s.interaction.after.length>=20&&!s.errors.length;
 function add(meta,prepare,finish,checks){
   const prior=course.length?course[course.length-1].solution:empty();
@@ -216,7 +222,7 @@ add({title:'Vérifier et garder mon site',topic:'Projet · La station CHAMS',tab
 // Check the concept taught, accepting equivalent HTML/CSS and personal wording.
 course[0].checks[0].test=(s,c)=>normalize(s.bodyText).includes('station meteo chams')&&!/<[^>]*>/.test(c.html);
 course[1].checks[0].test=(s,c)=>c.html.split(/\r?\n/).filter(l=>l.trim()).length>=2&&normalize(s.bodyText).includes('station meteo chams')&&normalize(s.bodyText).length>30&&!/<[^>]*>/.test(c.html);
-course[3].checks[0].test=(s,c)=>paragraph(s)&&pairedText(c.html,'p').length>0;
+course[3].checks[0].test=s=>paragraph(s);
 course[4].checks[0].test=(s,c)=>hasTitle(s)&&pairedText(c.html,'h1').some(t=>normalize(t).includes('station meteo chams'));
 course[4].checks[1].test=(s,c)=>pairedText(c.html,'h2').some(t=>normalize(t)==='notre station meteo')&&s.paragraphs.filter(p=>p.text.trim()).length>=2;
 course[4].checks[1].help='Ajoute <h2>Notre station météo</h2>, puis un paragraphe non vide sur le travail des élèves.';
@@ -226,11 +232,11 @@ course[6].annotations.push('La vérification contrôle que la description est pr
 course[8].checks[0].test=usefulLinks;
 course[8].checks[0].help='Garde cinq liens non vides dans des li de la liste. Vérifie leurs destinations, dont #station pour « Le projet CHAMS ».';
 course[9].checks[0].test=tableComplete;
-course[9].checks[0].help='Chaque relevé doit contenir quatre cellules : date, température, humidité, pression. La dernière ligne contient 10:32, 19, 60 et 1011.';
+course[9].checks[0].help='Garde cinq relevés avec quatre cellules et leurs en-têtes. Le relevé de 10:32 doit associer 19 à la température, 60 à l’humidité et 1011 à la pression, quel que soit l’ordre des colonnes ou des lignes.';
 course[11].checks[0].test=s=>s.styles.heroImageLoaded===true;
 course[11].checks[0].help='Dans .hero, utilise url("mountains.png") : le fichier doit réellement se charger.';
 course[12].checks[0].test=cardsAligned;
-course[12].checks[0].help='Dans .metrics, écris display: flex; et gap: 20px;. Garde flex-direction: row pour une disposition horizontale.';
+course[12].checks[0].help='Dispose les cartes horizontalement avec Flexbox et un espace de 20 pixels entre les colonnes. gap et column-gap conviennent.';
 course[13].checks[0].test=equalColumns;
 course[13].checks[0].help='Dans .station, utilise display: grid; et deux colonnes égales, par exemple grid-template-columns: 1fr 1fr;.';
 course[13].checks[0].label='La station utilise une grille à deux colonnes de même largeur.';

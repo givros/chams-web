@@ -29,13 +29,15 @@ function capturePage() {
     usefulLinkCount:all('.useful-links > ul > li > a').length,
     tableRows:all('tbody tr').map(row=>[...row.cells].map(text)),
     tableHeadings:all('thead th').length,
+    tableHeadingTexts:all('thead th').map(text),
     footerText:text(document.querySelector('footer')),
     styles:{titleColor:titleStyle?.color,titleSize:titleStyle?.fontSize,background:getComputedStyle(document.body).backgroundColor,padding:card?['Top','Right','Bottom','Left'].map(side=>card['padding'+side]):null,margin:card?['Top','Right','Bottom','Left'].map(side=>card['margin'+side]):null,radius:card?.borderTopLeftRadius,display:tiles?.display,direction:tiles?.flexDirection,gap:tiles?.gap,justify:tiles?.justifyContent},
     errors:[...window.__webLabErrors],interaction:{exists:false,before:'',after:''}
   };
-  Object.assign(snapshot.styles,{bodyFont:body?.fontFamily,bodyColor:body?.color,bodyMargin:body?['Top','Right','Bottom','Left'].map(side=>body['margin'+side]):null,heroImage:hero?.backgroundImage,heroImageLoaded:window.__webLabHeroImageLoaded===true,heroPadding:hero?.paddingTop,heroColor:hero?.color,metricsDisplay:metrics?.display,metricsDirection:metrics?.flexDirection||'row',metricsGap:metrics?.gap,stationDisplay:station?.display,stationColumns:station?.gridTemplateColumns,tableCollapse:table?.borderCollapse});
+  Object.assign(snapshot.styles,{bodyFont:body?.fontFamily,bodyColor:body?.color,bodyMargin:body?['Top','Right','Bottom','Left'].map(side=>body['margin'+side]):null,heroImage:hero?.backgroundImage,heroImageLoaded:window.__webLabHeroImageLoaded===true,heroPadding:hero?.paddingTop,heroColor:hero?.color,metricsDisplay:metrics?.display,metricsDirection:metrics?.flexDirection||'row',metricsGap:metrics?.gap,metricsColumnGap:metrics?.columnGap||metrics?.gap,stationDisplay:station?.display,stationColumns:station?.gridTemplateColumns,tableCollapse:table?.borderCollapse});
   const button=document.querySelector('button#hello'), message=document.querySelector('#message');
-  if(button&&message&&visible(button)){
+  if(window.__webLabInteraction){snapshot.interaction={...window.__webLabInteraction,visible:visible(message)};}
+  else if(button&&message&&visible(button)){
     snapshot.interaction={exists:true,before:text(message),after:''};
     try{button.click();}catch(error){window.__webLabErrors.push(error.message);}
     snapshot.interaction.after=text(message);
@@ -47,12 +49,32 @@ function capturePage() {
 }
 
 async function prepareObservation(){
+  // Let other load handlers finish installing their event listeners.
+  await new Promise(resolve=>setTimeout(resolve,0));
   await Promise.all([...document.images].map(img=>img.complete?Promise.resolve():new Promise(resolve=>{img.addEventListener('load',resolve,{once:true});img.addEventListener('error',resolve,{once:true});setTimeout(resolve,1500);})));
   window.__webLabHeroImageLoaded=false;
   const hero=document.querySelector('.hero');
   const source=hero?getComputedStyle(hero).backgroundImage.match(/url\(["']?([^"')]+)["']?\)/)?.[1]:null;
   if(source&&new URL(source,document.baseURI).pathname.endsWith('/mountains.png')){
     window.__webLabHeroImageLoaded=await new Promise(resolve=>{const img=new Image();const timeout=setTimeout(()=>resolve(false),2000);const finish=success=>{clearTimeout(timeout);resolve(success);};img.onload=()=>finish(img.naturalWidth>0);img.onerror=()=>finish(false);img.src=source;});
+  }
+  const button=document.querySelector('button#hello'),message=document.querySelector('#message');
+  if(button&&message){
+    const before=message.textContent.trim();
+    const visible=el=>{for(let e=el;e;e=e.parentElement){const s=getComputedStyle(e);if(s.display==='none'||s.visibility==='hidden'||s.opacity==='0')return false;}return true;};
+    if(visible(button)){
+      // Observe one real click, including a short asynchronous response. Do not
+      // click again when capturing: toggle buttons would undo their own result.
+      await new Promise(resolve=>{
+        let timer;const finish=()=>{clearTimeout(timer);observer.disconnect();resolve();};
+        const observer=new MutationObserver(()=>{if(message.textContent.trim()!==before)finish();});
+        observer.observe(message,{childList:true,characterData:true,subtree:true});
+        timer=setTimeout(finish,750);
+        try{button.click();}catch(e){window.__webLabErrors.push(e.message);finish();}
+        if(message.textContent.trim()!==before)finish();
+      });
+      window.__webLabInteraction={exists:true,before,after:message.textContent.trim()};
+    }
   }
 }
 
@@ -61,7 +83,11 @@ function makeDocument(code, options = {}) {
   const token=options.token||'';
   const header = `<script>window.__webLabErrors=[];window.addEventListener('error',e=>{window.__webLabErrors.push(e.message);parent.postMessage({type:'web-lab-error',token:${safe(token)},message:e.message},'*');});<\/script>`;
   const check = options.check ? `<script>window.addEventListener('load',async()=>{try{await (${prepareObservation.toString()})();const snapshot=(${capturePage.toString()})();parent.postMessage({type:'web-lab-check',token:${safe(token)},snapshot},'*');}catch(e){parent.postMessage({type:'web-lab-check-failed',token:${safe(token)},message:e.message},'*');}});<\/script>` : '';
-  const execution=`<script>try{(0,eval)(${safe(code.js)});window.atelier?.demarrer?.();}catch(e){window.__webLabErrors.push(e.message);parent.postMessage({type:'web-lab-error',token:${safe(token)},message:e.message},'*');}<\/script>`;
+  // Resolve callbacks in the learner's evaluation scope as well as on window.
+  // A const/let arrow function is just as usable as a function declaration.
+  const callbacks=['deplacer','sauter','courir','tourner','ramasser','lancer','toucher','recevoirDegats','soigner','victoire','avancerEnnemi','ecraser','activerCheckpoint'];
+  const bridge=code.html.includes('-workshop')?'\n;\n'+callbacks.map(name=>'if(typeof '+name+' === "function") window.'+name+' = '+name+';').join('\n'):'';
+  const execution=`<script>try{(0,eval)(${safe(code.js+bridge)});window.atelier?.demarrer?.();}catch(e){window.__webLabErrors.push(e.message);parent.postMessage({type:'web-lab-error',token:${safe(token)},message:e.message},'*');}<\/script>`;
   let html=code.html;
   for(const [name,source] of Object.entries(options.scripts||{}))html=html.replace('<script src="'+name+'"></script>',()=>'<script>'+source.replace(/<\/script/gi,'<\\/script')+'<\/script>');
   let css=code.css;

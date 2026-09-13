@@ -2,14 +2,15 @@ const fs=require('node:fs');
 const path=require('node:path');
 const {spawn}=require('node:child_process');
 const crypto=require('node:crypto');
-const {cases}=require('./audit-cases.cjs');
+const {cases}=require('./verification-cases.cjs');
+const variants=Array.from({length:46},(_,index)=>cases.find(c=>c.index===index&&c.expected&&c.label.includes(index<30?'fonctions placées':'HTML reformatté'))?.code);
 const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 const directory=path.resolve('.checks');fs.mkdirSync(directory,{recursive:true});
 const fixture=path.join(directory,'browser-audit.html');
 const script=`const cases=${JSON.stringify(cases).replace(/</g,'\\u003c')};const results=[];
 async function check(test){return new Promise(resolve=>{const frame=document.createElement('iframe'),token=crypto.randomUUID();frame.setAttribute('sandbox','allow-scripts');frame.style.cssText='position:fixed;left:-20000px;top:0;width:1200px;height:1400px;border:0;';let timeout;function end(result){clearTimeout(timeout);window.removeEventListener('message',handler);frame.remove();resolve(result);}function handler(event){if(event.source===frame.contentWindow&&event.data.token===token&&event.data.type==='web-lab-check'){const checks=WebLabCourse.validateExercise(test.index,event.data.snapshot,test.code);end({label:test.label,expected:test.expected,actual:checks.every(c=>c.pass),checks});}}window.addEventListener('message',handler);timeout=setTimeout(()=>end({label:test.label,timeout:true}),10000);frame.srcdoc=WebLabEngine.makeDocument(test.code,{check:true,token,base:'http://localhost:3000/'});document.body.append(frame);});}
 (async()=>{for(const test of cases){results.push(await check(test));window.auditResult={completed:false,results};}window.auditResult={completed:true,results};})();`;
-fs.writeFileSync(fixture,'<!doctype html><meta charset="utf-8"><body><p>Audit des exercices</p><script src="../weather-course.js"></script><script src="../engine.js"></script><script>'+script+'</script>');
+fs.writeFileSync(fixture,'<!doctype html><meta charset="utf-8"><body><p>Audit des exercices</p><script src="http://localhost:3000/weather-course.js"></script><script src="http://localhost:3000/platformer-lessons.js"></script><script src="http://localhost:3000/game-course.js"></script><script src="http://localhost:3000/engine.js"></script><script>'+script+'</script>');
 async function main(){
   // Serve the harness over loopback HTTP, like the real app. A file:// parent
   // can trigger local-network permission checks on the first image request.
@@ -34,7 +35,7 @@ async function main(){
     const {targetId}=await send('Target.createTarget',{url:'http://127.0.0.1:'+harness.address().port+'/audit.html'});
     const {sessionId}=await send('Target.attachToTarget',{targetId,flatten:true});
     let result;
-    for(let attempt=0;attempt<240;attempt++){
+    for(let attempt=0;attempt<900;attempt++){
       const response=await send('Runtime.evaluate',{expression:'window.auditResult',returnByValue:true},sessionId);
       result=response.result?.value;if(result?.completed)break;await delay(500);
     }
@@ -47,7 +48,8 @@ async function main(){
     const appTarget=await send('Target.createTarget',{url:'http://localhost:3000/'});
     const appSession=await send('Target.attachToTarget',{targetId:appTarget.targetId,flatten:true});
     for(let attempt=0;attempt<40;attempt++){const ready=await send('Runtime.evaluate',{expression:'!!document.querySelector("#code") && typeof WebLabCourse!=="undefined" && document.querySelectorAll("[data-step]").length===46',returnByValue:true},appSession.sessionId);if(ready.result?.value)break;await delay(100);}
-    const flow=await send('Runtime.evaluate',{awaitPromise:true,returnByValue:true,timeout:90000,expression:`(async()=>{
+    const flow=await send('Runtime.evaluate',{awaitPromise:true,returnByValue:true,timeout:180000,expression:`(async()=>{
+      const variants=${JSON.stringify(variants)};
       const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
       const find=s=>document.querySelector(s);
       const assert=(condition,message)=>{if(!condition)throw new Error(message);};
@@ -55,13 +57,15 @@ async function main(){
       const completed=[];
       for(let index=0;index<WebLabCourse.course.length;index++){
         const lesson=WebLabCourse.course[index];
+        for(const code of [lesson.solution,variants[index]]){
         for(const tab of ['html','css','js']){
           const button=find('[data-tab="'+tab+'"]');if(button.hidden)continue;
-          button.click();find('#code').value=lesson.solution[tab];find('#code').dispatchEvent(new Event('input',{bubbles:true}));
+          button.click();find('#code').value=code[tab];find('#code').dispatchEvent(new Event('input',{bubbles:true}));
         }
         find('#check').click();
         for(let attempt=0;attempt<650&&find('#check').disabled;attempt++)await wait(20);
         assert(find('#check-results').textContent.includes('Ton code fait ce qui est demandé.'),'Actual check failed on '+(index+1)+': '+find('#check-results').textContent);
+        }
         const wrong=find('#quiz-options input[value="'+((lesson.answer+1)%3)+'"]');wrong.checked=true;wrong.dispatchEvent(new Event('change',{bubbles:true}));
         assert(find('#next').disabled,'Wrong quiz must block step '+(index+1));
         const correct=find('#quiz-options input[value="'+lesson.answer+'"]');correct.checked=true;correct.dispatchEvent(new Event('change',{bubbles:true}));
@@ -70,7 +74,7 @@ async function main(){
       }
       assert(!find('#celebration').hidden,'Completion must appear');
       assert(find('#progress-label').textContent==='46 / 46','Progress must be complete');
-      return {completed,progress:find('#progress-label').textContent};
+      return {completed,actualChecks:completed.length*2,progress:find('#progress-label').textContent};
     })()`},appSession.sessionId);
     if(flow.exceptionDetails)throw new Error(flow.exceptionDetails.exception?.description||'Application flow failed');
     console.log('Actual browser app flow: '+JSON.stringify(flow.result.value));

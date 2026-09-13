@@ -14,7 +14,9 @@ async function main(){
 
 
     for(const index of process.env.THREE_PLAY_ONLY?[14]:Array.from({length:15},(_,i)=>i))for(const variant of process.env.THREE_PLAY_ONLY?['solution']:['starter','solution']){
-      const code=course[index][variant];const fixture=path.join(directory,'three-'+index+'-'+variant+'.html');
+      const original=course[index][variant];
+      const code=index===14&&variant==='solution'?{...original,js:require('./verification-cases.cjs').expressions(original.js,'arrow')}:original;
+      const fixture=path.join(directory,'three-'+index+'-'+variant+'.html');
       const scripts=index===14&&variant==='solution'?Object.fromEntries(['three.bundle.js','three-runtime.js'].map(name=>[name,fs.readFileSync(name,'utf8')])):{};
       fs.writeFileSync(fixture,makeDocument(code,Object.keys(scripts).length?{scripts}:{base:'http://localhost:3000/'}));
       const {targetId}=await send('Target.createTarget',{url:'file:///'+fixture.replace(/\\/g,'/')});

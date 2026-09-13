@@ -10,7 +10,7 @@ function createPlatformer(w, options={}){
   for(let x=40;x<=48;x++){tiles[17][x]=x===40?'slope-up':x===48?'slope-down':'ground';tiles[18][x]='body';}
   platforms.forEach(p=>{for(let x=p.x/T;x<(p.x+p.width)/T;x++)tiles[15][x]='ground';});
   const groundAt=x=>x>=1280&&x<1312?576-(x-1280):x>=1312&&x<1536?544:x>=1536&&x<1568?544+(x-1536):576;
-  w.joueur={x:64,y:512,vitesseY:0,auSol:true};w.gravite=.55;w.multiplicateur=1;w.score=0;w.vies=3;w.pointDepart=64;
+  w.joueur={x:64,y:512,vitesseY:0,auSol:true};w.gravite=stage>=4?0:.55;w.multiplicateur=1;w.score=0;w.vies=3;w.pointDepart=64;
   w.niveau={plateformes:false};w.drapeau={touche:false};
   let keys=new Set(),playing=false,ended=false,lost=false,invincible=0,camera=0,facing=1,initial=null,checkpoint=false,frames=0;
   const coins=[...[10,12,14,16,18].map(c=>({x:c*T,y:15*T,category:'EASY_COLLECTIBLE'})),...platforms.flatMap(p=>[1,2].map(c=>({x:p.x+c*T,y:12*T,category:'REWARD_COLLECTIBLE'}))),...[43,46,90,92].map(c=>({x:c*T,y:(c<50?14:15)*T,category:'GUIDANCE_COLLECTIBLE'}))].map(c=>({...c,visible:true}));

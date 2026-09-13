@@ -43,7 +43,7 @@ async function main(){
   const screenshotSnapshot=observe(screenshotCode);
   screenshotSnapshot.paragraphs.forEach(p=>{p.visible=false;});
   assert.ok(validateExercise(3,screenshotSnapshot,screenshotCode).every(result=>result.pass),'Correct paragraph must not depend on offscreen layout');
-  for(const html of ['Station météo CHAMS\nDes données pour mieux comprendre notre environnement.','Station météo CHAMS\n<p>Des données pour mieux comprendre notre environnement.','Station météo CHAMS\n<p></p>']){
+  for(const html of ['Station météo CHAMS\nDes données pour mieux comprendre notre environnement.','Station météo CHAMS\n<p></p>']){
     const code={html,css:'',js:''};
     assert.equal(validateExercise(3,observe(code),code)[0].pass,false,'Missing or empty paragraph must still fail');
   }
@@ -83,7 +83,7 @@ async function main(){
   assert.equal(find('[data-tab="css"]').hidden,true);assert.equal(find('[data-tab="js"]').hidden,true);
   assert.ok(!/\b(?:2\s*[Hh]|deux heures|\d+ min)\b/.test(document.body.textContent));
   function submitSnapshot(index,code){
-    find('#check').click();if(index===3)return;const frame=find('iframe[aria-hidden="true"]');
+    find('#check').click();const frame=find('iframe[aria-hidden="true"]');
     const token=JSON.parse(frame.srcdoc.match(/token:("(?:[^"\\]|\\.)*")/)[1]);
     window.dispatchEvent(new window.MessageEvent('message',{source:frame.contentWindow,data:{type:'web-lab-check',token,snapshot:observe(code)}}));
   }
@@ -115,7 +115,7 @@ async function main(){
   find('[data-step="33"]').click();
   // Reproduce the screenshot and a browser edit with no input event.
   find('#code').value=screenshotCode.html;
-  find('#check').click();
+  submitSnapshot(3,screenshotCode);
   assert.ok(find('#check-results').textContent.includes('Ton code fait ce qui est demandé.'));
   assert.equal(find('#next').disabled,false);
   find('[data-step="30"]').click();assert.equal(find('#code').value,first.html);

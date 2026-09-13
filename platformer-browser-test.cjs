@@ -4,7 +4,8 @@ const delay=ms=>new Promise(r=>setTimeout(r,ms));
 async function main(){
  const directory=path.resolve('.checks');fs.mkdirSync(directory,{recursive:true});
  const scripts=Object.fromEntries(['platformer-assets.js','platformer-runtime.js'].map(f=>[f,fs.readFileSync(f,'utf8')]));
- const fixture=path.join(directory,'platformer-export.html');fs.writeFileSync(fixture,makeDocument(course[29].solution,{scripts,play:true}));
+ const {expressions}=require('./verification-cases.cjs');
+ const fixture=path.join(directory,'platformer-export.html');fs.writeFileSync(fixture,makeDocument({...course[29].solution,js:expressions(course[29].solution.js,'arrow')},{scripts,play:true}));
  const profile=path.join(directory,'platformer-'+crypto.randomUUID());
  const browser=spawn('C:/Program Files/Google/Chrome/Application/chrome.exe',['--headless','--no-first-run','--no-default-browser-check','--remote-debugging-port=0','--user-data-dir='+profile,'about:blank'],{windowsHide:true,stdio:'ignore'});let ws;
  try{

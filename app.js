@@ -148,13 +148,6 @@ if(document.body.hasAttribute('data-target-page')){
     ensureDraft(state.step)[tab]=$('#code').value;
     state.validated[state.step]=false;
     navigation();save();
-    if(course[state.step].webIndex===3){
-      const code=clone(ensureDraft(state.step));
-      const parsed=new DOMParser().parseFromString(code.html,'text/html');
-      const snapshot={paragraphs:[...parsed.querySelectorAll('p')].map(p=>({text:p.textContent||''})),brCount:parsed.querySelectorAll('br').length};
-      showCheckResults(validateExercise(state.step,snapshot,code));
-      return;
-    }
     cancelCheck();const token=crypto.randomUUID(),frame=document.createElement('iframe');frame.title='Vérification isolée de ton exercice';frame.setAttribute('sandbox','allow-scripts');frame.setAttribute('aria-hidden','true');frame.tabIndex=-1;frame.style.cssText='position:fixed;left:-20000px;top:0;width:1200px;height:1400px;border:0;';
     const code=clone(ensureDraft(state.step));
     checkRun={token,frame,step:state.step,code,timeout:setTimeout(()=>{cancelCheck();$('#check-results').textContent='La page n’a pas répondu. Vérifie les ressources chargées et les erreurs, puis réessaie.';},10000)};
