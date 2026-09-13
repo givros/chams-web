@@ -73,12 +73,12 @@ async function main(){
 
   const errors=[];
   const virtualConsole=new VirtualConsole();virtualConsole.on('jsdomError',error=>errors.push(error.message));
-  const dom=await JSDOM.fromURL('http://localhost:3000/',{runScripts:'dangerously',resources:'usable',pretendToBeVisual:true,beforeParse(w){layoutShims(w);w.localStorage.setItem('chams-workshop-v5',JSON.stringify({step:9}));},virtualConsole});
+  const dom=await JSDOM.fromURL('http://localhost:3000/',{runScripts:'dangerously',resources:'usable',pretendToBeVisual:true,beforeParse(w){layoutShims(w);w.localStorage.setItem('chams-workshop-v6',JSON.stringify({step:19}));},virtualConsole});
   await new Promise(resolve=>dom.window.addEventListener('load',resolve,{once:true}));
   const window=dom.window,document=window.document,find=selector=>document.querySelector(selector);
   assert.deepEqual(errors,[],'Application must load without script errors');
   assert.equal(window.WebLabCourse.course[0].mode,'3d');
-  find('[data-step="9"]').click();
+  find('[data-step="19"]').click();
   assert.equal(find('#code').value,'');assert.equal(find('#next').disabled,true);
   assert.equal(find('[data-tab="css"]').hidden,true);assert.equal(find('[data-tab="js"]').hidden,true);
   assert.ok(!/\b(?:2\s*[Hh]|deux heures|\d+ min)\b/.test(document.body.textContent));
@@ -105,26 +105,26 @@ async function main(){
     if(i<course.length-1)find('#next').click();
   }
   assert.equal(find('#celebration').hidden,true);
-  assert.equal(find('#progress-label').textContent,'16 / 25');
-  const stored=JSON.parse(window.localStorage.getItem('chams-workshop-v5'));
-  assert.equal(stored.drafts[9].html,first.html);
-  assert.ok(stored.drafts[24].html.includes('Station météo CHAMS'));
-  find('[data-step="10"]').click();
+  assert.equal(find('#progress-label').textContent,'16 / 35');
+  const stored=JSON.parse(window.localStorage.getItem('chams-workshop-v6'));
+  assert.equal(stored.drafts[19].html,first.html);
+  assert.ok(stored.drafts[34].html.includes('Station météo CHAMS'));
+  find('[data-step="20"]').click();
   window.confirm=()=>true;find('#reset').click();
   assert.equal(find('#code').value,first.html,'Reset must retain the student’s previous text, not replace it with the model');
-  find('[data-step="12"]').click();
+  find('[data-step="22"]').click();
   // Reproduce the screenshot and a browser edit with no input event.
   find('#code').value=screenshotCode.html;
   find('#check').click();
   assert.ok(find('#check-results').textContent.includes('Ton code fait ce qui est demandé.'));
   assert.equal(find('#next').disabled,false);
-  find('[data-step="9"]').click();assert.equal(find('#code').value,first.html);
+  find('[data-step="19"]').click();assert.equal(find('#code').value,first.html);
   find('#code').value='';find('#code').dispatchEvent(new window.Event('input',{bubbles:true}));
   assert.equal(find('#next').disabled,true,'Editing invalidates old verification');
   find('#example-after').click();assert.equal(find('#code').value,'','The example must not fill in the answer');
-  const saved=window.localStorage.getItem('chams-workshop-v5');dom.window.close();
+  const saved=window.localStorage.getItem('chams-workshop-v6');dom.window.close();
   const restored=new JSDOM(fs.readFileSync('index.html','utf8'),{url:'http://localhost:3000/',runScripts:'outside-only',beforeParse:layoutShims});
-  restored.window.localStorage.setItem('chams-workshop-v5',saved);
+  restored.window.localStorage.setItem('chams-workshop-v6',saved);
   for(const file of ['weather-course.js','game-course.js','engine.js','app.js'])restored.window.eval(fs.readFileSync(file,'utf8'));
   assert.equal(restored.window.document.querySelector('#code').value,'');restored.window.close();
   for(const route of ['/','/preview.html','/goal.html','/weather-course.js','/engine.js','/mountains.png','/station.png'])assert.equal((await fetch('http://localhost:3000'+route)).status,200,route);

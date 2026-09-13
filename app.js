@@ -1,6 +1,6 @@
 const {course,validateExercise,target}=WebLabCourse;
 const {makeDocument}=WebLabEngine;
-const KEY='chams-workshop-v5';
+const KEY='chams-workshop-v6';
 const last=course.length-1;
 const $=selector=>document.querySelector(selector);
 const clone=code=>({html:code.html,css:code.css,js:code.js});
@@ -9,8 +9,16 @@ const escapeHtml=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&
 let state={step:0,drafts:{},answers:{},validated:{}};
 try {
   let saved=JSON.parse(localStorage.getItem(KEY));
-  if(!saved){const old=JSON.parse(localStorage.getItem('chams-workshop-v4'));if(old){saved={step:0,drafts:{},answers:{},validated:{}};for(const key of ['drafts','answers','validated'])for(const [i,value] of Object.entries(old[key]||{}))if(Number(i)>=5)saved[key][i]=value;}}
-  if(!saved){const old=JSON.parse(localStorage.getItem('chams-workshop-v3'));if(old){const offset=course.findIndex(l=>l.webIndex===0);saved={step:0,drafts:{},answers:{},validated:{}};for(const key of ['drafts','answers','validated'])for(const [i,value] of Object.entries(old[key]||{}))saved[key][Number(i)+offset]=value;}}
+  for(const version of [5,4,3])if(!saved){
+    const old=JSON.parse(localStorage.getItem('chams-workshop-v'+version));
+    if(old){
+      const shift=course.filter(l=>l.mode==='3d').length-5;
+      const map=i=>version===3?i+course.findIndex(l=>l.webIndex===0):i<5?i:i+shift;
+      saved={step:version===4&&old.step<5?0:map(Number(old.step)||0),drafts:{},answers:{},validated:{}};
+      for(const key of ['drafts','answers','validated'])for(const [i,value] of Object.entries(old[key]||{}))if(version!==4||Number(i)>=5)saved[key][map(Number(i))]=value;
+      if(version===5)for(let i=0;i<5;i++)if(validCode(saved.drafts[i]))saved.drafts[i]={...saved.drafts[i],html:course[i].starter.html};
+    }
+  }
   if(saved&&typeof saved==='object'){
     state.step=Number.isInteger(saved.step)&&saved.step>=0&&saved.step<=last?saved.step:0;
     for(let i=0;i<course.length;i++){
@@ -34,7 +42,7 @@ function sizePreview(){
   const viewport=$('#preview-viewport');if(!viewport)return;
   const frame=$('#preview');
   if(course[state.step].webIndex>=11){const scale=(viewport.clientWidth||480)/1200;frame.style.cssText='width:1200px;height:1450px;transform-origin:top left;transform:scale('+scale+');';viewport.style.height=Math.ceil(1450*scale)+'px';}
-  else if(course[state.step].mode){frame.style.cssText='width:100%;height:470px;';viewport.style.height='470px';}
+  else if(course[state.step].mode){const height=course[state.step].mode==='3d'&&state.step>=7?540:470;frame.style.cssText='width:100%;height:'+height+'px;';viewport.style.height=height+'px';}
   else{frame.style.cssText='';viewport.style.height='';}
 }
 function renderPreview(){previewToken=crypto.randomUUID();$('#preview').srcdoc=makeDocument(ensureDraft(state.step),{base,token:previewToken,play:document.body.hasAttribute('data-preview-page')});sizePreview();}
@@ -44,7 +52,7 @@ if(document.body.hasAttribute('data-target-page')){
   const isGame=!!finalLesson;
   document.title=isGame?'Le jeu '+project.toUpperCase()+' terminé — Web Lab':'Le site CHAMS à construire';
   $('header strong').textContent=isGame?'Le jeu '+project.toUpperCase()+' terminé · Modèle':'Le modèle du site CHAMS';
-  $('header span').textContent=isGame?(project==='3d'?'Clique dans le terrain · 4 flèches pour marcher · Espace pour sauter':'Clique dans le terrain · Flèches pour collecter les étoiles'):'Les nombres sont des données d’exemple.';
+  $('header span').textContent=isGame?(project==='3d'?'Flèches : marcher · Espace : sauter · Maj : courir · Q/E : tourner · F : lancer':'Clique dans le terrain · Flèches pour collecter les étoiles'):'Les nombres sont des données d’exemple.';
   $('#preview').title=isGame?'Modèle jouable du jeu '+project.toUpperCase():'Modèle final du site CHAMS';
   $('#preview').srcdoc=makeDocument(isGame?finalLesson.solution:target,{base,play:isGame});
 }else if(document.body.hasAttribute('data-preview-page')){
@@ -112,8 +120,8 @@ if(document.body.hasAttribute('data-target-page')){
       'Clique dans le jeu, puis teste les flèches gauche et droite.',
       'Clique dans le jeu, puis teste les quatre flèches.',
       'Clique dans le jeu · Flèches pour marcher · Espace pour sauter'
-    ][state.step]:l.mode?'Clique dans le jeu · Flèches pour bouger':'Le résultat change pendant que tu écris.';
-    $('#example-preview').style.height=l.mode?'470px':'';
+    ][state.step]||'Clique dans le jeu pour tester la mission : '+l.title:l.mode?'Clique dans le jeu · Flèches pour bouger':'Le résultat change pendant que tu écris.';
+    $('#example-preview').style.height=l.mode==='3d'&&state.step>=7?'540px':l.mode?'470px':'';
     setTab(l.tab);example(false);quizFeedback();navigation();renderPreview();save();
   }
   function goTo(index){if(index>0&&!course[index].chapterStart&&!state.drafts[index]&&!passed(index-1))return;state.step=index;render();$('.lesson-header').scrollIntoView({behavior:'smooth',block:'start'});}
@@ -143,7 +151,7 @@ if(document.body.hasAttribute('data-target-page')){
     }
     cancelCheck();const token=crypto.randomUUID(),frame=document.createElement('iframe');frame.title='Vérification isolée de ton exercice';frame.setAttribute('sandbox','allow-scripts');frame.setAttribute('aria-hidden','true');frame.tabIndex=-1;frame.style.cssText='position:fixed;left:-20000px;top:0;width:1200px;height:1400px;border:0;';
     const code=clone(ensureDraft(state.step));
-    checkRun={token,frame,step:state.step,code,timeout:setTimeout(()=>{cancelCheck();$('#check-results').textContent='La page n’a pas répondu. Vérifie les ressources chargées et les erreurs, puis réessaie.';},5000)};
+    checkRun={token,frame,step:state.step,code,timeout:setTimeout(()=>{cancelCheck();$('#check-results').textContent='La page n’a pas répondu. Vérifie les ressources chargées et les erreurs, puis réessaie.';},10000)};
     $('#check').disabled=true;$('#check').textContent='Je vérifie…';$('#check-results').textContent='Vérification du résultat et des actions…';
     frame.srcdoc=makeDocument(code,{base,token,check:true});document.body.append(frame);
   };

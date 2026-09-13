@@ -12,7 +12,7 @@ async function main(){
     ws.onmessage=event=>{const message=JSON.parse(event.data);if(requests.has(message.id)){const pending=requests.get(message.id);requests.delete(message.id);message.error?pending.reject(new Error(message.error.message)):pending.resolve(message.result);}};
     const send=(method,params={},sessionId)=>new Promise((resolve,reject)=>{const id=++counter;requests.set(id,{resolve,reject});ws.send(JSON.stringify({id,method,params,sessionId}));});
 
-    for(const index of [8]){
+    for(const index of [18]){
       const fixture=path.join(directory,'play-'+index+'.html');fs.writeFileSync(fixture,makeDocument(course[index].solution));
       const {targetId}=await send('Target.createTarget',{url:'file:///'+fixture.replace(/\\/g,'/')});
       const {sessionId}=await send('Target.attachToTarget',{targetId,flatten:true});

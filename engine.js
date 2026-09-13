@@ -65,7 +65,7 @@ function makeDocument(code, options = {}) {
   let html=code.html;
   for(const [name,source] of Object.entries(options.scripts||{}))html=html.replace('<script src="'+name+'"></script>',()=>'<script>'+source.replace(/<\/script/gi,'<\\/script')+'<\/script>');
   let css=code.css;
-  if(options.play&&code.html.includes('three-workshop'))css+='\n.three-workshop #terrain{height:calc(100vh - 132px);min-height:340px}';
+  if(options.play&&code.html.includes('three-workshop'))css+='\n.three-workshop #terrain{height:calc(100vh - 180px);min-height:340px}';
   for(const [name,data] of Object.entries(options.assets||{})){
     const escapedName=name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
     html=html.replace(new RegExp('src\\s*=\\s*(["\'])(?:\\.\\/|\\/)?'+escapedName+'\\1','gi'),(_match,quote)=>`src=${quote}${data}${quote}`);
