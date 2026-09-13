@@ -46,7 +46,7 @@ async function main(){
     // Run the actual app: no synthetic verifier messages or mocked layout.
     const appTarget=await send('Target.createTarget',{url:'http://localhost:3000/'});
     const appSession=await send('Target.attachToTarget',{targetId:appTarget.targetId,flatten:true});
-    for(let attempt=0;attempt<40;attempt++){const ready=await send('Runtime.evaluate',{expression:'!!document.querySelector("#code") && typeof WebLabCourse!=="undefined" && document.querySelectorAll("[data-step]").length===35',returnByValue:true},appSession.sessionId);if(ready.result?.value)break;await delay(100);}
+    for(let attempt=0;attempt<40;attempt++){const ready=await send('Runtime.evaluate',{expression:'!!document.querySelector("#code") && typeof WebLabCourse!=="undefined" && document.querySelectorAll("[data-step]").length===46',returnByValue:true},appSession.sessionId);if(ready.result?.value)break;await delay(100);}
     const flow=await send('Runtime.evaluate',{awaitPromise:true,returnByValue:true,timeout:90000,expression:`(async()=>{
       const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
       const find=s=>document.querySelector(s);
@@ -69,16 +69,16 @@ async function main(){
         completed.push(index+1);if(index<WebLabCourse.course.length-1)find('#next').click();
       }
       assert(!find('#celebration').hidden,'Completion must appear');
-      assert(find('#progress-label').textContent==='35 / 35','Progress must be complete');
+      assert(find('#progress-label').textContent==='46 / 46','Progress must be complete');
       return {completed,progress:find('#progress-label').textContent};
     })()`},appSession.sessionId);
     if(flow.exceptionDetails)throw new Error(flow.exceptionDetails.exception?.description||'Application flow failed');
     console.log('Actual browser app flow: '+JSON.stringify(flow.result.value));
     await send('Page.reload',{},appSession.sessionId);
     let restored=false;
-    for(let attempt=0;attempt<50;attempt++){const check=await send('Runtime.evaluate',{expression:'document.querySelector("#progress-label")?.textContent === "35 / 35" && document.querySelector("#code")?.value.includes("Station météo CHAMS")',returnByValue:true},appSession.sessionId);if(check.result?.value){restored=true;break;}await delay(100);}
+    for(let attempt=0;attempt<50;attempt++){const check=await send('Runtime.evaluate',{expression:'document.querySelector("#progress-label")?.textContent === "46 / 46" && document.querySelector("#code")?.value.includes("Station météo CHAMS")',returnByValue:true},appSession.sessionId);if(check.result?.value){restored=true;break;}await delay(100);}
     if(!restored)throw new Error('Saved code and progress did not survive reload');
-    console.log('Actual browser reload: saved code and 35/35 progress restored.');
+    console.log('Actual browser reload: saved code and 46/46 progress restored.');
     await send('Browser.close');
   }finally{if(ws?.readyState===WebSocket.OPEN){ws.send(JSON.stringify({id:999999,method:'Browser.close'}));await delay(200);ws.close();}browser.kill();harness.close();}
 }

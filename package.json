@@ -4,12 +4,13 @@
   "private": true,
   "scripts": {
     "start": "node server.js",
-    "check": "node --check app.js && node --check weather-course.js && node --check engine.js && node --check server.js && node --check game-course.js && node --check three-runtime.js",
+    "check": "node --check app.js && node --check weather-course.js && node --check engine.js && node --check server.js && node --check game-course.js && node --check three-runtime.js && node --check platformer-runtime.js && node --check platformer-lessons.js",
     "test": "node game-test.cjs && node smoke-test.js",
     "test:browser": "node browser-audit.cjs",
     "build:three": "node build-three.cjs",
     "test:three": "node three-browser-test.cjs",
-    "build": "npm run build:three && node build-site.cjs"
+    "build": "npm run build:three && node build-site.cjs",
+    "test:platformer": "node platformer-browser-test.cjs"
   },
   "devDependencies": {
     "jsdom": "^26.1.0",

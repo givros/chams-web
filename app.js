@@ -1,6 +1,6 @@
 const {course,validateExercise,target}=WebLabCourse;
 const {makeDocument}=WebLabEngine;
-const KEY='chams-workshop-v6';
+const KEY='chams-workshop-v7';
 const last=course.length-1;
 const $=selector=>document.querySelector(selector);
 const clone=code=>({html:code.html,css:code.css,js:code.js});
@@ -9,13 +9,19 @@ const escapeHtml=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&
 let state={step:0,drafts:{},answers:{},validated:{}};
 try {
   let saved=JSON.parse(localStorage.getItem(KEY));
-  for(const version of [5,4,3])if(!saved){
+  for(const version of [6,5,4,3])if(!saved){
     const old=JSON.parse(localStorage.getItem('chams-workshop-v'+version));
     if(old){
-      const shift=course.filter(l=>l.mode==='3d').length-5;
-      const map=i=>version===3?i+course.findIndex(l=>l.webIndex===0):i<5?i:i+shift;
+      const webStart=course.findIndex(l=>l.webIndex===0),twoStart=course.findIndex(l=>l.mode==='2d');
+      const oldWebStart=version===6?19:9,oldThreeCount=version===6?15:5;
+      const map=i=>version===3?i+webStart:i<oldThreeCount?i:i>=oldWebStart?i+webStart-oldWebStart:twoStart;
       saved={step:version===4&&old.step<5?0:map(Number(old.step)||0),drafts:{},answers:{},validated:{}};
-      for(const key of ['drafts','answers','validated'])for(const [i,value] of Object.entries(old[key]||{}))if(version!==4||Number(i)>=5)saved[key][map(Number(i))]=value;
+      for(const key of ['drafts','answers','validated'])for(const [i,value] of Object.entries(old[key]||{})){
+        const n=Number(i);
+        if(version!==3&&n>=oldThreeCount&&n<oldWebStart)continue;
+        if(version===4&&n<5)continue;
+        saved[key][map(n)]=value;
+      }
       if(version===5)for(let i=0;i<5;i++)if(validCode(saved.drafts[i]))saved.drafts[i]={...saved.drafts[i],html:course[i].starter.html};
     }
   }
@@ -52,7 +58,7 @@ if(document.body.hasAttribute('data-target-page')){
   const isGame=!!finalLesson;
   document.title=isGame?'Le jeu '+project.toUpperCase()+' terminé — Web Lab':'Le site CHAMS à construire';
   $('header strong').textContent=isGame?'Le jeu '+project.toUpperCase()+' terminé · Modèle':'Le modèle du site CHAMS';
-  $('header span').textContent=isGame?(project==='3d'?'Flèches : marcher · Espace : sauter · Maj : courir · Q/E : tourner · F : lancer':'Clique dans le terrain · Flèches pour collecter les étoiles'):'Les nombres sont des données d’exemple.';
+  $('header span').textContent=isGame?(project==='3d'?'Flèches : marcher · Espace : sauter · Maj : courir · Q/E : tourner · F : lancer':'← → ou Q/D : marcher · Espace : sauter · Maj : courir · 5 pièces et le drapeau pour gagner'):'Les nombres sont des données d’exemple.';
   $('#preview').title=isGame?'Modèle jouable du jeu '+project.toUpperCase():'Modèle final du site CHAMS';
   $('#preview').srcdoc=makeDocument(isGame?finalLesson.solution:target,{base,play:isGame});
 }else if(document.body.hasAttribute('data-preview-page')){
@@ -120,7 +126,7 @@ if(document.body.hasAttribute('data-target-page')){
       'Clique dans le jeu, puis teste les flèches gauche et droite.',
       'Clique dans le jeu, puis teste les quatre flèches.',
       'Clique dans le jeu · Flèches pour marcher · Espace pour sauter'
-    ][state.step]||'Clique dans le jeu pour tester la mission : '+l.title:l.mode?'Clique dans le jeu · Flèches pour bouger':'Le résultat change pendant que tu écris.';
+    ][state.step]||'Clique dans le jeu pour tester la mission : '+l.title:l.mode?'Clique dans le niveau · ← → : marcher · Espace : sauter · Maj : courir':'Le résultat change pendant que tu écris.';
     $('#example-preview').style.height=l.mode==='3d'&&state.step>=7?'540px':l.mode?'470px':'';
     setTab(l.tab);example(false);quizFeedback();navigation();renderPreview();save();
   }
@@ -167,7 +173,7 @@ if(document.body.hasAttribute('data-target-page')){
   });
   async function download(){
     const code=ensureDraft(state.step),assets={},scripts={};
-    try{if(course[state.step].mode==='3d')await Promise.all(['three.bundle.js','three-runtime.js'].map(async name=>{const response=await fetch(name);if(!response.ok)throw new Error(name);scripts[name]=await response.text();}));await Promise.all(['mountains.png','station.png'].filter(name=>(code.html+code.css).includes(name)).map(async name=>{const response=await fetch(name);if(!response.ok)throw new Error(name);const blob=await response.blob();assets[name]=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(blob);});}));}catch{$('#save-status').textContent='Une ressource du projet n’a pas pu être intégrée. Réessaie le téléchargement.';return;}
+    try{if(course[state.step].mode)await Promise.all((course[state.step].mode==='3d'?['three.bundle.js','three-runtime.js']:['platformer-assets.js','platformer-runtime.js']).map(async name=>{const response=await fetch(name);if(!response.ok)throw new Error(name);scripts[name]=await response.text();}));await Promise.all(['mountains.png','station.png'].filter(name=>(code.html+code.css).includes(name)).map(async name=>{const response=await fetch(name);if(!response.ok)throw new Error(name);const blob=await response.blob();assets[name]=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(blob);});}));}catch{$('#save-status').textContent='Une ressource du projet n’a pas pu être intégrée. Réessaie le téléchargement.';return;}
     const blob=new Blob([makeDocument(code,{assets,scripts})],{type:'text/html;charset=utf-8'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=course[state.step].mode?'mon-jeu-'+course[state.step].mode+'.html':state.step===last?'station-meteo-chams.html':'chams-etape-'+(course[state.step].webIndex+1)+'.html';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
   }
   const themeToggle=$('#theme-toggle');

@@ -21,12 +21,12 @@ async function main(){
     if(!(await evaluate(app,'document.querySelector("#play-finale").hidden')))throw Error('Final card must wait for last lesson');
     const draft={...course[14].solution,js:course[14].solution.js.replace('= 2;','= -1;')};
     const saved={step:14,drafts:{14:draft},answers:{},validated:{}};
-    await evaluate(app,'localStorage.setItem("chams-workshop-v6",'+JSON.stringify(JSON.stringify(saved))+')');await send('Page.reload',{},app);await waitFor(app,'document.querySelector("#play-finale") && !document.querySelector("#play-finale").hidden');
+    await evaluate(app,'localStorage.setItem("chams-workshop-v7",'+JSON.stringify(JSON.stringify(saved))+')');await send('Page.reload',{},app);await waitFor(app,'document.querySelector("#play-finale") && !document.querySelector("#play-finale").hidden');
     const own=await open('http://localhost:3000/preview.html?step=14');await waitFor(own,'document.querySelector("#preview")?.srcdoc.includes("= -1;")');
     const doc=await evaluate(own,'document.querySelector("#preview").srcdoc');
-    await evaluate(app,'(()=>{const s=JSON.parse(localStorage.getItem("chams-workshop-v6"));s.step=19;s.drafts[19]={html:"Ma page web",css:"",js:""};localStorage.setItem("chams-workshop-v6",JSON.stringify(s));})()');await delay(300);
+    await evaluate(app,'(()=>{const s=JSON.parse(localStorage.getItem("chams-workshop-v7"));s.step=30;s.drafts[30]={html:"Ma page web",css:"",js:""};localStorage.setItem("chams-workshop-v7",JSON.stringify(s));})()');await delay(300);
     if(await evaluate(own,'document.querySelector("#preview").srcdoc')!==doc)throw Error('Changing chapters must not restart or replace the game');
-    await evaluate(app,'(()=>{const s=JSON.parse(localStorage.getItem("chams-workshop-v6"));s.drafts[14].js=s.drafts[14].js.replace("= -1;","= -2;");localStorage.setItem("chams-workshop-v6",JSON.stringify(s));})()');await waitFor(own,'document.querySelector("#preview").srcdoc.includes("= -2;")');
+    await evaluate(app,'(()=>{const s=JSON.parse(localStorage.getItem("chams-workshop-v7"));s.drafts[14].js=s.drafts[14].js.replace("= -1;","= -2;");localStorage.setItem("chams-workshop-v7",JSON.stringify(s));})()');await waitFor(own,'document.querySelector("#preview").srcdoc.includes("= -2;")');
     const model=await open('http://localhost:3000/goal.html?project=3d');await waitFor(model,'document.querySelector("#preview")?.srcdoc.includes("vitesseVerticale = 0.12")');
     // Locate the real default execution context of each sandboxed game frame.
     for(const sessionId of [own,model]){
@@ -47,7 +47,7 @@ async function main(){
       if((await evaluate(gameSession,'personnage.position.y',context))<=0)throw Error('Jump failed on playable page');
       if((await evaluate(gameSession,'document.querySelector("canvas").clientHeight',context))<600)throw Error('Game must use the dedicated page height');
     }
-    const after=await evaluate(app,'JSON.parse(localStorage.getItem("chams-workshop-v6")).drafts[14].js');if(!after.includes('= -2;'))throw Error('Model must not change learner code');
+    const after=await evaluate(app,'JSON.parse(localStorage.getItem("chams-workshop-v7")).drafts[14].js');if(!after.includes('= -2;'))throw Error('Model must not change learner code');
     const shot=await send('Page.captureScreenshot',{format:'png'},model);fs.writeFileSync(path.join(directory,'finished-game-page.png'),Buffer.from(shot.data,'base64'));
     console.log('Passed: model link, final chapter card, learner code preservation, pinned project, live code update, full-height Three.js, keyboard movement and jump on both pages.');
     await send('Browser.close');
